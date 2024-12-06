@@ -631,4 +631,5 @@ with gr.Blocks(css=css) as demo:
         outputs = [output_propagated, output_video, working_frame, available_frames_to_check, reset_prpgt_brn]
     )
 
-demo.queue().launch(show_api=False, show_error=True, share=True, server_name="0.0.0.0", server_port=11111)
+demo.launch(show_api=False, show_error=True)
+# demo.queue().launch(show_api=False, show_error=True, share=True, server_name="0.0.0.0", server_port=11111)
