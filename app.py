@@ -133,14 +133,17 @@ def preprocess_video_in(video_path):
 def get_point(point_type, tracking_points, trackings_input_label, input_first_frame_image, evt: gr.SelectData):
     print(f"You selected {evt.value} at {evt.index} from {evt.target}")
 
-    tracking_points.value.append(evt.index)
-    print(f"TRACKING POINT: {tracking_points.value}")
+    tracking_points.append(evt.index)
+    # tracking_points.value.append(evt.index)
+    print(f"TRACKING POINT: {tracking_points}")
 
     if point_type == "include":
-        trackings_input_label.value.append(1)
+        trackings_input_label.append(1)
+        # trackings_input_label.value.append(1)
     elif point_type == "exclude":
-        trackings_input_label.value.append(0)
-    print(f"TRACKING INPUT LABEL: {trackings_input_label.value}")
+        trackings_input_label.append(0)
+        # trackings_input_label.value.append(0)
+    print(f"TRACKING INPUT LABEL: {trackings_input_label}")
     
     # Open the image and get its dimensions
     transparent_background = Image.open(input_first_frame_image).convert('RGBA')
