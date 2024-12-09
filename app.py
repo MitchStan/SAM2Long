@@ -119,8 +119,8 @@ def preprocess_video_in(video_path):
     
     return [
         first_frame,           # first_frame_path
-        [],          # tracking_points
-        [],          # trackings_input_label
+        gr.State([]),          # tracking_points
+        gr.State([]),  
         first_frame,           # input_first_frame_image
         first_frame,           # points_map
         extracted_frames_output_dir,            # video_frames_dir
