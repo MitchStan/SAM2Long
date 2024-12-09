@@ -6,6 +6,7 @@
 
 from setuptools import find_packages, setup
 from torch.utils.cpp_extension import BuildExtension, CUDAExtension
+import spaces
 
 # Package metadata
 NAME = "SAM 2"
