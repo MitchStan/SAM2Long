@@ -1,33 +1,13 @@
 import subprocess
 import re
 from typing import List, Tuple, Optional
-
+import spaces
 
 # Define the command to be executed
 command = ["python", "setup.py", "build_ext", "--inplace"]
 
 # Execute the command
 result = subprocess.run(command, capture_output=True, text=True)
-
-
-def install_cuda_toolkit():
-    # CUDA_TOOLKIT_URL = "https://developer.download.nvidia.com/compute/cuda/11.8.0/local_installers/cuda_11.8.0_520.61.05_linux.run"
-    CUDA_TOOLKIT_URL = "https://developer.download.nvidia.com/compute/cuda/12.2.0/local_installers/cuda_12.2.0_535.54.03_linux.run"
-    CUDA_TOOLKIT_FILE = "/tmp/%s" % os.path.basename(CUDA_TOOLKIT_URL)
-    subprocess.call(["wget", "-q", CUDA_TOOLKIT_URL, "-O", CUDA_TOOLKIT_FILE])
-    subprocess.call(["chmod", "+x", CUDA_TOOLKIT_FILE])
-    subprocess.call([CUDA_TOOLKIT_FILE, "--silent", "--toolkit"])
-
-    os.environ["CUDA_HOME"] = "/usr/local/cuda"
-    os.environ["PATH"] = "%s/bin:%s" % (os.environ["CUDA_HOME"], os.environ["PATH"])
-    os.environ["LD_LIBRARY_PATH"] = "%s/lib:%s" % (
-        os.environ["CUDA_HOME"],
-        "" if "LD_LIBRARY_PATH" not in os.environ else os.environ["LD_LIBRARY_PATH"],
-    )
-    # Fix: arch_list[-1] += '+PTX'; IndexError: list index out of range
-    os.environ["TORCH_CUDA_ARCH_LIST"] = "8.0;8.6"
-
-install_cuda_toolkit()
 
 css="""
 div#component-18, div#component-25, div#component-35, div#component-41{
@@ -333,6 +313,7 @@ def get_mask_sam_process(
     # return gr.update(visible=True), "output_first_frame.jpg", frame_names, predictor, inference_state, gr.update(choices=available_frames_to_check, value=working_frame, visible=True)
     return "output_first_frame.jpg", frame_names, predictor, inference_state, gr.update(choices=available_frames_to_check, value=working_frame, visible=False)
 
+@spaces.GPU(duration=180)
 def propagate_to_all(video_in, checkpoint, stored_inference_state, stored_frame_names, video_frames_dir, vis_frame_type, available_frames_to_check, working_frame, progress=gr.Progress(track_tqdm=True)):   
     #### PROPAGATION ####
     sam2_checkpoint, model_cfg = load_model(checkpoint)
@@ -465,9 +446,7 @@ with gr.Blocks(css=css) as demo:
         gr.Markdown(
             """
             ### 📋 Instructions:
-
             It is largely built on the [SAM2-Video-Predictor](https://huggingface.co/spaces/fffiloni/SAM2-Video-Predictor).
-
             1. **Upload your video** [MP4-24fps]
             2. With **'include' point type** selected, click on the object to mask on the first frame
             3. Switch to **'exclude' point type** if you want to specify an area to avoid
@@ -475,7 +454,6 @@ with gr.Blocks(css=css) as demo:
             5. **Check Propagation** every 15 frames
             6. **Propagate with "render"** to render the final masked video
             7. **Hit Reset** button if you want to refresh and start again
-
             *Note: Input video will be processed for up to 10 seconds only for demo purposes.*
             """
         )
@@ -632,4 +610,3 @@ with gr.Blocks(css=css) as demo:
     )
 
 demo.launch(show_api=False, show_error=True)
-# demo.queue().launch(show_api=False, show_error=True, share=True, server_name="0.0.0.0", server_port=11111)
