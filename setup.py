@@ -29,7 +29,6 @@ REQUIRED_PACKAGES = [
     "hydra-core>=1.3.2",
     "iopath>=0.1.10",
     "pillow>=9.4.0",
-    "gradio==4.13.0",
 ]
 
 EXTRA_PACKAGES = {
