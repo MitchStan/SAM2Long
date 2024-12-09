@@ -4,8 +4,8 @@ from typing import List, Tuple, Optional
 import spaces
 
 # Define the command to be executed
-command = ["python", "setup.py", "build_ext", "--inplace"]
-
+# command = ["python", "setup.py", "build_ext", "--inplace"]
+command = ["pip", "install", "--no-build-isolation", "-e", "."]
 # Execute the command
 result = subprocess.run(command, capture_output=True, text=True)
 
