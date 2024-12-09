@@ -156,8 +156,8 @@ def get_point(point_type, tracking_points, trackings_input_label, input_first_fr
     # Create a transparent layer to draw on
     transparent_layer = np.zeros((h, w, 4), dtype=np.uint8)
     
-    for index, track in enumerate(tracking_points.value):
-        if trackings_input_label.value[index] == 1:
+    for index, track in enumerate(tracking_points):
+        if trackings_input_label[index] == 1:
             cv2.circle(transparent_layer, track, radius, (0, 255, 0, 255), -1)
         else:
             cv2.circle(transparent_layer, track, radius, (255, 0, 0, 255), -1)
@@ -284,9 +284,9 @@ def get_mask_sam_process(
     ann_obj_id = 1  # give a unique id to each object we interact with (it can be any integers)
     
     # Let's add a positive click at (x, y) = (210, 350) to get started
-    points = np.array(tracking_points.value, dtype=np.float32)
+    points = np.array(tracking_points, dtype=np.float32)
     # for labels, `1` means positive click and `0` means negative click
-    labels = np.array(trackings_input_label.value, np.int32)
+    labels = np.array(trackings_input_label, np.int32)
     _, out_obj_ids, out_mask_logits = predictor.add_new_points(
         inference_state=inference_state,
         frame_idx=ann_frame_idx,
