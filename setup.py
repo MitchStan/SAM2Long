@@ -37,7 +37,7 @@ EXTRA_PACKAGES = {
     "dev": ["black==24.2.0", "usort==1.0.2", "ufmt==2.0.0b2"],
 }
 
-@spaces.GPU(duration=120)
+# @spaces.GPU(duration=120)
 def get_extensions():
     srcs = ["sam2/csrc/connected_components.cu"]
     compile_args = {
