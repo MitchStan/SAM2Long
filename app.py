@@ -55,8 +55,8 @@ def clear_points(image):
     # we clean all
     return [
         image,   # first_frame_path
-        [],      # tracking_points
-        [],      # trackings_input_label
+        gr.State([]),      # tracking_points
+        gr.State([]),      # trackings_input_label
         image,   # points_map
         #gr.State()     # stored_inference_state
     ]
@@ -119,8 +119,8 @@ def preprocess_video_in(video_path):
     
     return [
         first_frame,           # first_frame_path
-        gr.State([]),          # tracking_points
-        gr.State([]),  
+        [],          # tracking_points
+        [],          # trackings_input_label
         first_frame,           # input_first_frame_image
         first_frame,           # points_map
         extracted_frames_output_dir,            # video_frames_dir
@@ -130,7 +130,6 @@ def preprocess_video_in(video_path):
         gr.update(open=False)  # video_in_drawer
     ]
 
-@spaces.GPU(duration=120) 
 def get_point(point_type, tracking_points, trackings_input_label, input_first_frame_image, evt: gr.SelectData):
     print(f"You selected {evt.value} at {evt.index} from {evt.target}")
 
@@ -166,13 +165,13 @@ def get_point(point_type, tracking_points, trackings_input_label, input_first_fr
     
     return tracking_points, trackings_input_label, selected_point_map
     
-# # use bfloat16 for the entire notebook
-# torch.autocast(device_type="cuda", dtype=torch.bfloat16).__enter__()
+# use bfloat16 for the entire notebook
+torch.autocast(device_type="cuda", dtype=torch.bfloat16).__enter__()
 
-# if torch.cuda.get_device_properties(0).major >= 8:
-#     # turn on tfloat32 for Ampere GPUs (https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices)
-#     torch.backends.cuda.matmul.allow_tf32 = True
-#     torch.backends.cudnn.allow_tf32 = True
+if torch.cuda.get_device_properties(0).major >= 8:
+    # turn on tfloat32 for Ampere GPUs (https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices)
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
     
 def show_mask(mask, ax, obj_id=None, random_color=False):
     if random_color:
@@ -218,8 +217,7 @@ def load_model(checkpoint):
     #     return [sam2_checkpoint, model_cfg]
 
     
-
-@spaces.GPU(duration=120) 
+    
 def get_mask_sam_process(
     stored_inference_state,
     input_first_frame_image, 
@@ -315,7 +313,7 @@ def get_mask_sam_process(
     # return gr.update(visible=True), "output_first_frame.jpg", frame_names, predictor, inference_state, gr.update(choices=available_frames_to_check, value=working_frame, visible=True)
     return "output_first_frame.jpg", frame_names, predictor, inference_state, gr.update(choices=available_frames_to_check, value=working_frame, visible=False)
 
-@spaces.GPU(duration=120)
+@spaces.GPU(duration=180)
 def propagate_to_all(video_in, checkpoint, stored_inference_state, stored_frame_names, video_frames_dir, vis_frame_type, available_frames_to_check, working_frame, progress=gr.Progress(track_tqdm=True)):   
     #### PROPAGATION ####
     sam2_checkpoint, model_cfg = load_model(checkpoint)
@@ -415,36 +413,25 @@ def switch_working_frame(working_frame, scanned_frames, video_frames_dir):
             frame_number = int(match.group(1))
             ann_frame_idx = frame_number
             new_working_frame = os.path.join(video_frames_dir, scanned_frames[ann_frame_idx])
-    return [], [], new_working_frame, new_working_frame
+    return gr.State([]), gr.State([]), new_working_frame, new_working_frame
 
-
-@spaces.GPU(duration=120) 
 def reset_propagation(first_frame_path, predictor, stored_inference_state):
     
     predictor.reset_state(stored_inference_state)
     # print(f"RESET State: {stored_inference_state} ")
-    return first_frame_path, [], [], gr.update(value=None, visible=False), stored_inference_state, None, ["frame_0.jpg"], first_frame_path, "frame_0.jpg", gr.update(visible=False)
+    return first_frame_path, gr.State([]), gr.State([]), gr.update(value=None, visible=False), stored_inference_state, None, ["frame_0.jpg"], first_frame_path, "frame_0.jpg", gr.update(visible=False)
 
 
 with gr.Blocks(css=css) as demo:
-    # first_frame_path = gr.State()
-    # tracking_points = gr.State([])
-    # trackings_input_label = gr.State([])
-    # video_frames_dir = gr.State()
-    # scanned_frames = gr.State()
-    # loaded_predictor = gr.State()
-    # stored_inference_state = gr.State()
-    # stored_frame_names = gr.State()
-    # available_frames_to_check = gr.State([])
-    first_frame_path = None
-    tracking_points = []
-    trackings_input_label = []
-    video_frames_dir = None
-    scanned_frames = None
-    loaded_predictor = None
-    stored_inference_state = None
-    stored_frame_names = None
-    available_frames_to_check = []
+    first_frame_path = gr.State()
+    tracking_points = gr.State([])
+    trackings_input_label = gr.State([])
+    video_frames_dir = gr.State()
+    scanned_frames = gr.State()
+    loaded_predictor = gr.State()
+    stored_inference_state = gr.State()
+    stored_frame_names = gr.State()
+    available_frames_to_check = gr.State([])
     with gr.Column():
         gr.Markdown(
             """
