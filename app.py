@@ -38,6 +38,15 @@ from sam2.build_sam import build_sam2_video_predictor
 
 from moviepy.editor import ImageSequenceClip
 
+def sparse_sampling(jpeg_images, original_fps, target_fps=5):
+    # Calculate the frame interval for sampling based on the target fps
+    frame_interval = int(original_fps // target_fps)
+    
+    # Sparse sample the jpeg_images by selecting every 'frame_interval' frame
+    sampled_images = [jpeg_images[i] for i in range(0, len(jpeg_images), frame_interval)]
+    
+    return sampled_images
+
 def get_video_fps(video_path):
     # Open the video file
     cap = cv2.VideoCapture(video_path)
@@ -401,9 +410,9 @@ def propagate_to_all(video_in, checkpoint, stored_inference_state, stored_frame_
     elif vis_frame_type == "render":
         # Create a video clip from the image sequence
         original_fps = get_video_fps(video_in)
-        fps = original_fps  # Frames per second
-        total_frames = len(jpeg_images)
-        clip = ImageSequenceClip(jpeg_images, fps=fps)
+        sampled_images = sparse_sampling(jpeg_images, original_fps, target_fps=6)
+        clip = ImageSequenceClip(sampled_images, fps=6)
+        # clip = ImageSequenceClip(jpeg_images, fps=fps)
         # Write the result to a file
         final_vid_output_path = "output_video.mp4"
         
@@ -521,7 +530,10 @@ with gr.Blocks(css=css) as demo:
                 with gr.Group():
                     with gr.Row():
                         vis_frame_type = gr.Radio(label="Propagation level", choices=["check", "render"], value="check", scale=2)
-                        propagate_btn = gr.Button("Propagate", scale=2)
+                        # Use gr.Column to center the button vertically
+                        with gr.Column():
+                            propagate_btn = gr.Button("Propagate", scale=2)
+
                 reset_prpgt_brn = gr.Button("Reset", visible=False)
                 output_propagated = gr.Gallery(label="Propagated Mask samples gallery", columns=4, visible=False)
                 output_video = gr.Video(visible=False)
