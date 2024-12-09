@@ -324,7 +324,7 @@ def get_mask_sam_process(
     # return gr.update(visible=True), "output_first_frame.jpg", frame_names, predictor, inference_state, gr.update(choices=available_frames_to_check, value=working_frame, visible=True)
     return "output_first_frame.jpg", frame_names, predictor, inference_state, gr.update(choices=available_frames_to_check, value=working_frame, visible=False)
 
-@spaces.GPU(duration=20)
+@spaces.GPU
 def propagate_to_all(video_in, checkpoint, stored_inference_state, stored_frame_names, video_frames_dir, vis_frame_type, available_frames_to_check, working_frame, progress=gr.Progress(track_tqdm=True)):   
     #### PROPAGATION ####
     sam2_checkpoint, model_cfg = load_model(checkpoint)
@@ -521,7 +521,7 @@ with gr.Blocks(css=css) as demo:
                 with gr.Group():
                     with gr.Row():
                         vis_frame_type = gr.Radio(label="Propagation level", choices=["check", "render"], value="check", scale=2)
-                        propagate_btn = gr.Button("Propagate", scale=1)
+                        propagate_btn = gr.Button("Propagate", scale=2)
                 reset_prpgt_brn = gr.Button("Reset", visible=False)
                 output_propagated = gr.Gallery(label="Propagated Mask samples gallery", columns=4, visible=False)
                 output_video = gr.Video(visible=False)
