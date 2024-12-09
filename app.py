@@ -241,9 +241,11 @@ def get_mask_sam_process(
 
     # set predictor 
     if torch.cuda.is_available():
-        predictor = build_sam2_video_predictor(model_cfg, sam2_checkpoint)
+        inference_state["device"] = 'cuda'
+    #     predictor = build_sam2_video_predictor(model_cfg, sam2_checkpoint)
     else:
-        predictor = build_sam2_video_predictor(model_cfg, sam2_checkpoint, device='cpu')
+        inference_state["device"] = 'cpu'
+    predictor = build_sam2_video_predictor(model_cfg, sam2_checkpoint, device='cpu')
         
     print("PREDICTOR READY")
 
@@ -326,12 +328,15 @@ def get_mask_sam_process(
 def propagate_to_all(video_in, checkpoint, stored_inference_state, stored_frame_names, video_frames_dir, vis_frame_type, available_frames_to_check, working_frame, progress=gr.Progress(track_tqdm=True)):   
     #### PROPAGATION ####
     sam2_checkpoint, model_cfg = load_model(checkpoint)
+    # set predictor 
     if torch.cuda.is_available():
+        inference_state["device"] = 'cuda'
         predictor = build_sam2_video_predictor(model_cfg, sam2_checkpoint)
     else:
+        inference_state["device"] = 'cpu'
         predictor = build_sam2_video_predictor(model_cfg, sam2_checkpoint, device='cpu')
-     
     
+
     inference_state = stored_inference_state
     frame_names = stored_frame_names
     video_dir = video_frames_dir
