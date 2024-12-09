@@ -540,6 +540,7 @@ with gr.Blocks(css=css) as demo:
             tracking_points, # get tracking_points values
             trackings_input_label, # get tracking label values
             input_first_frame_image, # gr.State() first frame path
+            gr.SelectData(),
         ], 
         outputs = [
             tracking_points, # updated with new points
