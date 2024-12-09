@@ -496,7 +496,7 @@ with gr.Blocks(css=css) as demo:
                 with gr.Group():
                     # with gr.Group():
                         # with gr.Row():
-                    working_frame = gr.Dropdown(label="working frame ID", choices=[""], value="frame_0.jpg", visible=False, allow_custom_value=False, interactive=True)
+                    working_frame = gr.Dropdown(label="working frame ID", choices=["frame_0.jpg"], value="frame_0.jpg", visible=False, allow_custom_value=False, interactive=True)
                         #     change_current = gr.Button("change current", visible=False)
                     # working_frame = []
                     output_result = gr.Image(label="current working mask ref")
