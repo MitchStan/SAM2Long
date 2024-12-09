@@ -177,13 +177,7 @@ def get_point(point_type, tracking_points, trackings_input_label, input_first_fr
     
     return tracking_points, trackings_input_label, selected_point_map
     
-# use bfloat16 for the entire notebook
-# torch.autocast(device_type="cpu", dtype=torch.bfloat16).__enter__()
 
-# if torch.cuda.get_device_properties(0).major >= 8:
-#     # turn on tfloat32 for Ampere GPUs (https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices)
-#     torch.backends.cuda.matmul.allow_tf32 = True
-#     torch.backends.cudnn.allow_tf32 = True
     
 def show_mask(mask, ax, obj_id=None, random_color=False):
     if random_color:
@@ -335,6 +329,14 @@ def get_mask_sam_process(
 
 @spaces.GPU
 def propagate_to_all(video_in, checkpoint, stored_inference_state, stored_frame_names, video_frames_dir, vis_frame_type, available_frames_to_check, working_frame, progress=gr.Progress(track_tqdm=True)):   
+    # use bfloat16 for the entire notebook
+    torch.autocast(device_type="cuda", dtype=torch.bfloat16).__enter__()
+
+    if torch.cuda.get_device_properties(0).major >= 8:
+        # turn on tfloat32 for Ampere GPUs (https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices)
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+    
     #### PROPAGATION ####
     sam2_checkpoint, model_cfg = load_model(checkpoint)
     # set predictor 
@@ -530,9 +532,7 @@ with gr.Blocks(css=css) as demo:
                 with gr.Group():
                     with gr.Row():
                         vis_frame_type = gr.Radio(label="Propagation level", choices=["check", "render"], value="check", scale=2)
-                        # Use gr.Column to center the button vertically
-                        with gr.Column():
-                            propagate_btn = gr.Button("Propagate", scale=2)
+                        propagate_btn = gr.Button("Propagate", scale=2)
 
                 reset_prpgt_brn = gr.Button("Reset", visible=False)
                 output_propagated = gr.Gallery(label="Propagated Mask samples gallery", columns=4, visible=False)
