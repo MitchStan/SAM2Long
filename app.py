@@ -13,6 +13,11 @@ div#component-18, div#component-25, div#component-35, div#component-41{
 }
 """
 
+predictor = None
+
+
+
+
 @spaces.GPU(duration=120)
 def run_install(command):
     result = subprocess.run(command, capture_output=True, text=True)
@@ -245,6 +250,7 @@ def get_mask_sam_process(
     print("MODEL LOADED")
 
     # set predictor 
+    global predictor
     predictor = build_sam2_video_predictor(model_cfg, sam2_checkpoint)
     print("PREDICTOR READY")
 
@@ -319,12 +325,13 @@ def get_mask_sam_process(
         print(available_frames_to_check)
     
     # return gr.update(visible=True), "output_first_frame.jpg", frame_names, predictor, inference_state, gr.update(choices=available_frames_to_check, value=working_frame, visible=True)
-    return "output_first_frame.jpg", frame_names, predictor, inference_state, gr.update(choices=available_frames_to_check, value=working_frame, visible=False)
+    return "output_first_frame.jpg", frame_names, inference_state, gr.update(choices=available_frames_to_check, value=working_frame, visible=False)
 
 @spaces.GPU(duration=120)
 def propagate_to_all(video_in, checkpoint, stored_inference_state, stored_frame_names, video_frames_dir, vis_frame_type, available_frames_to_check, working_frame, progress=gr.Progress(track_tqdm=True)):   
     #### PROPAGATION ####
     sam2_checkpoint, model_cfg = load_model(checkpoint)
+    global predictor
     predictor = build_sam2_video_predictor(model_cfg, sam2_checkpoint)
     
     inference_state = stored_inference_state
@@ -425,7 +432,7 @@ def switch_working_frame(working_frame, scanned_frames, video_frames_dir):
 
 
 @spaces.GPU(duration=120) 
-def reset_propagation(first_frame_path, predictor, stored_inference_state):
+def reset_propagation(first_frame_path, stored_inference_state):
     
     predictor.reset_state(stored_inference_state)
     # print(f"RESET State: {stored_inference_state} ")
@@ -438,7 +445,7 @@ with gr.Blocks(css=css) as demo:
     trackings_input_label = gr.State([])
     video_frames_dir = gr.State()
     scanned_frames = gr.State()
-    loaded_predictor = gr.State()
+    # loaded_predictor = gr.State()
     stored_inference_state = gr.State()
     stored_frame_names = gr.State()
     available_frames_to_check = gr.State([])
@@ -594,7 +601,7 @@ with gr.Blocks(css=css) as demo:
         outputs = [
             output_result, 
             stored_frame_names, 
-            loaded_predictor,
+            # loaded_predictor,
             stored_inference_state,
             working_frame,
         ],
@@ -603,7 +610,7 @@ with gr.Blocks(css=css) as demo:
 
     reset_prpgt_brn.click(
         fn = reset_propagation,
-        inputs = [first_frame_path, loaded_predictor, stored_inference_state],
+        inputs = [first_frame_path, stored_inference_state],
         outputs = [points_map, tracking_points, trackings_input_label, output_propagated, stored_inference_state, output_result, available_frames_to_check, input_first_frame_image, working_frame, reset_prpgt_brn],
         queue=False
     )
@@ -618,5 +625,7 @@ with gr.Blocks(css=css) as demo:
         inputs = [video_in, checkpoint, stored_inference_state, stored_frame_names, video_frames_dir, vis_frame_type, available_frames_to_check, working_frame],
         outputs = [output_propagated, output_video, working_frame, available_frames_to_check, reset_prpgt_brn]
     )
+
+
 
 demo.launch()
