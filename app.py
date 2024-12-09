@@ -4,16 +4,8 @@ from typing import List, Tuple, Optional
 import spaces
 
 # Define the command to be executed
-# command = ["python", "setup.py", "build_ext", "--inplace"]
-command = ["pip", "install", "--no-build-isolation", "-e", "."]
+
 # Execute the command
-
-@spaces.GPU(duration=120)
-def run_install(command):
-    result = subprocess.run(command, capture_output=True, text=True)
-    return result
-
-result = run_install(command)
 
 css="""
 div#component-18, div#component-25, div#component-35, div#component-41{
@@ -21,15 +13,19 @@ div#component-18, div#component-25, div#component-35, div#component-41{
 }
 """
 
-# Print the output and error (if any)
-print("Output:\n", result.stdout)
-print("Errors:\n", result.stderr)
+@spaces.GPU(duration=120)
+def run_install(command):
+    result = subprocess.run(command, capture_output=True, text=True)
+    # Print the output and error (if any)
+    print("Output:\n", result.stdout)
+    print("Errors:\n", result.stderr)
 
-# Check if the command was successful
-if result.returncode == 0:
-    print("Command executed successfully.")
-else:
-    print("Command failed with return code:", result.returncode)
+    # Check if the command was successful
+    if result.returncode == 0:
+        print("Command executed successfully.")
+    else:
+        print("Command failed with return code:", result.returncode)
+
 
 import gradio as gr
 from datetime import datetime
@@ -67,7 +63,11 @@ def clear_points(image):
         #gr.State()     # stored_inference_state
     ]
 
+@spaces.GPU(duration=120) 
 def preprocess_video_in(video_path):
+    # command = ["python", "setup.py", "build_ext", "--inplace"]
+    command = ["pip", "install", "--no-build-isolation", "-e", "."]
+    run_install(command)
 
     # Generate a unique ID based on the current date and time
     unique_id = datetime.now().strftime('%Y%m%d%H%M%S')
