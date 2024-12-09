@@ -412,8 +412,8 @@ def propagate_to_all(video_in, checkpoint, stored_inference_state, stored_frame_
     elif vis_frame_type == "render":
         # Create a video clip from the image sequence
         original_fps = get_video_fps(video_in)
-        sampled_images = sparse_sampling(jpeg_images, original_fps, target_fps=6)
-        clip = ImageSequenceClip(sampled_images, fps=6)
+        # sampled_images = sparse_sampling(jpeg_images, original_fps, target_fps=6)
+        clip = ImageSequenceClip(jpeg_images, fps=original_fps//6)
         # clip = ImageSequenceClip(jpeg_images, fps=fps)
         # Write the result to a file
         final_vid_output_path = "output_video.mp4"
