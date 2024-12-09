@@ -451,7 +451,7 @@ def reset_propagation(first_frame_path, predictor, stored_inference_state):
     
     predictor.reset_state(stored_inference_state)
     # print(f"RESET State: {stored_inference_state} ")
-    return first_frame_path, gr.State([]), gr.State([]), gr.update(value=None, visible=False), stored_inference_state, None, ["frame_0.jpg"], first_frame_path, "frame_0.jpg", gr.update(visible=False)
+    return first_frame_path, [], [], gr.update(value=None, visible=False), stored_inference_state, None, ["frame_0.jpg"], first_frame_path, "frame_0.jpg", gr.update(visible=False)
 
 
 with gr.Blocks(css=css) as demo:
