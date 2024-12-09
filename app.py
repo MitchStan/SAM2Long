@@ -7,7 +7,13 @@ import spaces
 # command = ["python", "setup.py", "build_ext", "--inplace"]
 command = ["pip", "install", "--no-build-isolation", "-e", "."]
 # Execute the command
-result = subprocess.run(command, capture_output=True, text=True)
+
+@spaces.GPU(duration=120)
+def run_install(command):
+    result = subprocess.run(command, capture_output=True, text=True)
+    return result
+
+result = run_install(command)
 
 css="""
 div#component-18, div#component-25, div#component-35, div#component-41{
