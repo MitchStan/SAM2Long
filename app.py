@@ -169,12 +169,12 @@ def get_point(point_type, tracking_points, trackings_input_label, input_first_fr
     return tracking_points, trackings_input_label, selected_point_map
     
 # use bfloat16 for the entire notebook
-torch.autocast(device_type="cuda", dtype=torch.bfloat16).__enter__()
+# torch.autocast(device_type="cpu", dtype=torch.bfloat16).__enter__()
 
-if torch.cuda.get_device_properties(0).major >= 8:
-    # turn on tfloat32 for Ampere GPUs (https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices)
-    torch.backends.cuda.matmul.allow_tf32 = True
-    torch.backends.cudnn.allow_tf32 = True
+# if torch.cuda.get_device_properties(0).major >= 8:
+#     # turn on tfloat32 for Ampere GPUs (https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices)
+#     torch.backends.cuda.matmul.allow_tf32 = True
+#     torch.backends.cudnn.allow_tf32 = True
     
 def show_mask(mask, ax, obj_id=None, random_color=False):
     if random_color:
@@ -240,7 +240,11 @@ def get_mask_sam_process(
     print("MODEL LOADED")
 
     # set predictor 
-    predictor = build_sam2_video_predictor(model_cfg, sam2_checkpoint)
+    if torch.cuda.is_available():
+        predictor = build_sam2_video_predictor(model_cfg, sam2_checkpoint)
+    else:
+        predictor = build_sam2_video_predictor(model_cfg, sam2_checkpoint, device='cpu')
+        
     print("PREDICTOR READY")
 
     # `video_dir` a directory of JPEG frames with filenames like `<frame_index>.jpg`
@@ -287,6 +291,8 @@ def get_mask_sam_process(
     points = np.array(tracking_points, dtype=np.float32)
     # for labels, `1` means positive click and `0` means negative click
     labels = np.array(trackings_input_label, np.int32)
+
+
     _, out_obj_ids, out_mask_logits = predictor.add_new_points(
         inference_state=inference_state,
         frame_idx=ann_frame_idx,
@@ -306,7 +312,7 @@ def get_mask_sam_process(
     first_frame_output_filename = "output_first_frame.jpg"
     plt.savefig(first_frame_output_filename, format='jpg')
     plt.close()
-    torch.cuda.empty_cache()
+    # torch.cuda.empty_cache()
 
     # Assuming available_frames_to_check.value is a list
     if working_frame not in available_frames_to_check:
@@ -316,11 +322,15 @@ def get_mask_sam_process(
     # return gr.update(visible=True), "output_first_frame.jpg", frame_names, predictor, inference_state, gr.update(choices=available_frames_to_check, value=working_frame, visible=True)
     return "output_first_frame.jpg", frame_names, predictor, inference_state, gr.update(choices=available_frames_to_check, value=working_frame, visible=False)
 
-@spaces.GPU(duration=120)
+@spaces.GPU(duration=110)
 def propagate_to_all(video_in, checkpoint, stored_inference_state, stored_frame_names, video_frames_dir, vis_frame_type, available_frames_to_check, working_frame, progress=gr.Progress(track_tqdm=True)):   
     #### PROPAGATION ####
     sam2_checkpoint, model_cfg = load_model(checkpoint)
-    predictor = build_sam2_video_predictor(model_cfg, sam2_checkpoint)
+    if torch.cuda.is_available():
+        predictor = build_sam2_video_predictor(model_cfg, sam2_checkpoint)
+    else:
+        predictor = build_sam2_video_predictor(model_cfg, sam2_checkpoint, device='cpu')
+     
     
     inference_state = stored_inference_state
     frame_names = stored_frame_names
