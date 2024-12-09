@@ -55,8 +55,8 @@ def clear_points(image):
     # we clean all
     return [
         image,   # first_frame_path
-        gr.State([]),      # tracking_points
-        gr.State([]),      # trackings_input_label
+        [],      # tracking_points
+        [],      # trackings_input_label
         image,   # points_map
         #gr.State()     # stored_inference_state
     ]
@@ -119,8 +119,8 @@ def preprocess_video_in(video_path):
     
     return [
         first_frame,           # first_frame_path
-        gr.State([]),          # tracking_points
-        gr.State([]),          # trackings_input_label
+        [],          # tracking_points
+        [],          # trackings_input_label
         first_frame,           # input_first_frame_image
         first_frame,           # points_map
         extracted_frames_output_dir,            # video_frames_dir
@@ -415,7 +415,7 @@ def switch_working_frame(working_frame, scanned_frames, video_frames_dir):
             frame_number = int(match.group(1))
             ann_frame_idx = frame_number
             new_working_frame = os.path.join(video_frames_dir, scanned_frames[ann_frame_idx])
-    return gr.State([]), gr.State([]), new_working_frame, new_working_frame
+    return [], [], new_working_frame, new_working_frame
 
 
 @spaces.GPU(duration=120) 
@@ -423,19 +423,28 @@ def reset_propagation(first_frame_path, predictor, stored_inference_state):
     
     predictor.reset_state(stored_inference_state)
     # print(f"RESET State: {stored_inference_state} ")
-    return first_frame_path, gr.State([]), gr.State([]), gr.update(value=None, visible=False), stored_inference_state, None, ["frame_0.jpg"], first_frame_path, "frame_0.jpg", gr.update(visible=False)
+    return first_frame_path, [], [], gr.update(value=None, visible=False), stored_inference_state, None, ["frame_0.jpg"], first_frame_path, "frame_0.jpg", gr.update(visible=False)
 
 
 with gr.Blocks(css=css) as demo:
-    first_frame_path = gr.State()
-    tracking_points = gr.State([])
-    trackings_input_label = gr.State([])
-    video_frames_dir = gr.State()
-    scanned_frames = gr.State()
-    loaded_predictor = gr.State()
-    stored_inference_state = gr.State()
-    stored_frame_names = gr.State()
-    available_frames_to_check = gr.State([])
+    # first_frame_path = gr.State()
+    # tracking_points = gr.State([])
+    # trackings_input_label = gr.State([])
+    # video_frames_dir = gr.State()
+    # scanned_frames = gr.State()
+    # loaded_predictor = gr.State()
+    # stored_inference_state = gr.State()
+    # stored_frame_names = gr.State()
+    # available_frames_to_check = gr.State([])
+    first_frame_path = None
+    tracking_points = []
+    trackings_input_label = []
+    video_frames_dir = None
+    scanned_frames = None
+    loaded_predictor = None
+    stored_inference_state = None
+    stored_frame_names = None
+    available_frames_to_check = []
     with gr.Column():
         gr.Markdown(
             """
