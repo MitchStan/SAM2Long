@@ -166,13 +166,13 @@ def get_point(point_type, tracking_points, trackings_input_label, input_first_fr
     
     return tracking_points, trackings_input_label, selected_point_map
     
-# use bfloat16 for the entire notebook
-torch.autocast(device_type="cuda", dtype=torch.bfloat16).__enter__()
+# # use bfloat16 for the entire notebook
+# torch.autocast(device_type="cuda", dtype=torch.bfloat16).__enter__()
 
-if torch.cuda.get_device_properties(0).major >= 8:
-    # turn on tfloat32 for Ampere GPUs (https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices)
-    torch.backends.cuda.matmul.allow_tf32 = True
-    torch.backends.cudnn.allow_tf32 = True
+# if torch.cuda.get_device_properties(0).major >= 8:
+#     # turn on tfloat32 for Ampere GPUs (https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices)
+#     torch.backends.cuda.matmul.allow_tf32 = True
+#     torch.backends.cudnn.allow_tf32 = True
     
 def show_mask(mask, ax, obj_id=None, random_color=False):
     if random_color:
