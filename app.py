@@ -130,6 +130,7 @@ def preprocess_video_in(video_path):
         gr.update(open=False)  # video_in_drawer
     ]
 
+@spaces.GPU(duration=120) 
 def get_point(point_type, tracking_points, trackings_input_label, input_first_frame_image, evt: gr.SelectData):
     print(f"You selected {evt.value} at {evt.index} from {evt.target}")
 
@@ -217,7 +218,8 @@ def load_model(checkpoint):
     #     return [sam2_checkpoint, model_cfg]
 
     
-    
+
+@spaces.GPU(duration=120) 
 def get_mask_sam_process(
     stored_inference_state,
     input_first_frame_image, 
@@ -313,7 +315,7 @@ def get_mask_sam_process(
     # return gr.update(visible=True), "output_first_frame.jpg", frame_names, predictor, inference_state, gr.update(choices=available_frames_to_check, value=working_frame, visible=True)
     return "output_first_frame.jpg", frame_names, predictor, inference_state, gr.update(choices=available_frames_to_check, value=working_frame, visible=False)
 
-@spaces.GPU(duration=180)
+@spaces.GPU(duration=120)
 def propagate_to_all(video_in, checkpoint, stored_inference_state, stored_frame_names, video_frames_dir, vis_frame_type, available_frames_to_check, working_frame, progress=gr.Progress(track_tqdm=True)):   
     #### PROPAGATION ####
     sam2_checkpoint, model_cfg = load_model(checkpoint)
@@ -415,6 +417,8 @@ def switch_working_frame(working_frame, scanned_frames, video_frames_dir):
             new_working_frame = os.path.join(video_frames_dir, scanned_frames[ann_frame_idx])
     return gr.State([]), gr.State([]), new_working_frame, new_working_frame
 
+
+@spaces.GPU(duration=120) 
 def reset_propagation(first_frame_path, predictor, stored_inference_state):
     
     predictor.reset_state(stored_inference_state)
@@ -609,4 +613,4 @@ with gr.Blocks(css=css) as demo:
         outputs = [output_propagated, output_video, working_frame, available_frames_to_check, reset_prpgt_brn]
     )
 
-demo.launch(show_api=False, show_error=True)
+demo.launch()
