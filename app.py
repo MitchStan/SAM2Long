@@ -38,7 +38,7 @@ from sam2.build_sam import build_sam2_video_predictor
 
 from moviepy.editor import ImageSequenceClip
 
-def sparse_sampling(jpeg_images, original_fps, target_fps=5):
+def sparse_sampling(jpeg_images, original_fps, target_fps=6):
     # Calculate the frame interval for sampling based on the target fps
     frame_interval = int(original_fps // target_fps)
     
@@ -92,8 +92,8 @@ def preprocess_video_in(video_path):
     # Get the frames per second (FPS) of the video
     fps = cap.get(cv2.CAP_PROP_FPS)
     
-    # Calculate the number of frames to process (10 seconds of video)
-    max_frames = int(fps * 10)
+    # Calculate the number of frames to process (60 seconds of video)
+    max_frames = int(fps * 60)
     
     frame_number = 0
     first_frame = None
@@ -102,12 +102,12 @@ def preprocess_video_in(video_path):
         ret, frame = cap.read()
         if not ret or frame_number >= max_frames:
             break
-        
-        # Format the frame filename as '00000.jpg'
-        frame_filename = os.path.join(extracted_frames_output_dir, f'{frame_number:05d}.jpg')
-        
-        # Save the frame as a JPEG file
-        cv2.imwrite(frame_filename, frame)
+        if frame_number % 6 == 0:
+            # Format the frame filename as '00000.jpg'
+            frame_filename = os.path.join(extracted_frames_output_dir, f'{frame_number:05d}.jpg')
+            
+            # Save the frame as a JPEG file
+            cv2.imwrite(frame_filename, frame)
         
         # Store the first frame
         if frame_number == 0:
@@ -486,7 +486,7 @@ with gr.Blocks(css=css) as demo:
             5. **Check Propagation** every 15 frames
             6. **Propagate with "render"** to render the final masked video
             7. **Hit Reset** button if you want to refresh and start again
-            *Note: Input video will be processed for up to 10 seconds only for demo purposes.*
+            *Note: Input video will be processed for up to 60 seconds only for demo purposes.*
             """
         )
         with gr.Row():
@@ -630,6 +630,7 @@ with gr.Blocks(css=css) as demo:
         outputs = [points_map, tracking_points, trackings_input_label, output_propagated, stored_inference_state, output_result, available_frames_to_check, input_first_frame_image, working_frame, reset_prpgt_brn],
         queue=False
     )
+
 
     propagate_btn.click(
         fn = update_ui,
