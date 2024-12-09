@@ -55,8 +55,8 @@ def clear_points(image):
     # we clean all
     return [
         image,   # first_frame_path
-        gr.State([]),      # tracking_points
-        gr.State([]),      # trackings_input_label
+        [],      # tracking_points
+        [],      # trackings_input_label
         image,   # points_map
         #gr.State()     # stored_inference_state
     ]
@@ -220,7 +220,7 @@ def load_model(checkpoint):
     #     return [sam2_checkpoint, model_cfg]
 
     
-@spaces.GPU(duration=20)
+
 def get_mask_sam_process(
     stored_inference_state,
     input_first_frame_image, 
@@ -264,11 +264,8 @@ def get_mask_sam_process(
         inference_state = stored_inference_state
 
 
-    if torch.cuda.is_available():
-        inference_state["device"] = 'cuda'
-    #     predictor = build_sam2_video_predictor(model_cfg, sam2_checkpoint)
-    else:
-        inference_state["device"] = 'cpu'
+
+    inference_state["device"] = 'cpu'
         
     # segment and track one object
     # predictor.reset_state(inference_state) # if any previous tracking, reset
