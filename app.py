@@ -486,6 +486,7 @@ with gr.Blocks(css=css) as demo:
             5. **Check Propagation** every 15 frames
             6. **Propagate with "render"** to render the final masked video
             7. **Hit Reset** button if you want to refresh and start again
+            
             *Note: Input video will be processed for up to 60 seconds only for demo purposes.*
             """
         )
