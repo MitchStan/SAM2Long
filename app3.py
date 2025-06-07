@@ -39,40 +39,26 @@ div#component-18, div#component-25, div#component-35, div#component-41{
 }
 """
 
-# --- FIX 1: New OpenCV drawing function to replace Matplotlib for image generation ---
 def draw_mask_and_points_on_image(image_path, mask, points=None, labels=None):
-    """
-    Draws masks and points on an image using OpenCV to preserve quality.
-    """
-    # Load the original high-resolution image
     image = cv2.imread(image_path)
-    
-    # Create a colored overlay for the mask
-    # The mask is a boolean array, convert it to a 3-channel color image
-    color = np.array([0, 255, 0], dtype=np.uint8) # Green color for the mask
+    color = np.array([0, 255, 0], dtype=np.uint8)
     mask_overlay = np.zeros_like(image, dtype=np.uint8)
     mask_overlay[mask] = color
-
-    # Blend the mask overlay with the original image
-    # alpha=0.6 means the mask will be 60% opaque
     blended_image = cv2.addWeighted(image, 1.0, mask_overlay, 0.6, 0)
 
-    # Draw points if provided
     if points is not None and labels is not None:
         h, w, _ = image.shape
-        radius = int(0.01 * min(h, w)) # Smaller radius for high-res
+        radius = int(0.01 * min(h, w))
         for (x, y), label in zip(points, labels):
-            color = (0, 255, 0) if label == 1 else (0, 0, 255) # Green for include, Red for exclude
+            color = (0, 255, 0) if label == 1 else (0, 0, 255)
             cv2.circle(blended_image, (int(x), int(y)), radius, color, -1)
-            cv2.circle(blended_image, (int(x), int(y)), radius, (255,255,255), 2) # White outline
+            cv2.circle(blended_image, (int(x), int(y)), radius, (255,255,255), 2)
 
     return blended_image
 
 def get_video_fps(video_path):
     cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        print("Error: Could not open video.")
-        return None
+    if not cap.isOpened(): return None
     fps = cap.get(cv2.CAP_PROP_FPS)
     cap.release()
     return fps
@@ -86,38 +72,39 @@ def preprocess_video_in(video_path):
     os.makedirs(extracted_frames_output_dir, exist_ok=True)
 
     cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        print("Error: Could not open video.")
-        return None
+    if not cap.isOpened(): return None
 
     fps = cap.get(cv2.CAP_PROP_FPS)
     max_frames = int(fps * 60)
     frame_number = 0
     first_frame = None
     
+    # --- FIX: Set JPEG quality parameter ---
+    jpeg_quality = [cv2.IMWRITE_JPEG_QUALITY, 95]
+
     while True:
         ret, frame = cap.read()
         if not ret or frame_number >= max_frames:
             break
         if frame_number % 6 == 0:
-            # --- FIX 2: Save as lossless PNG to preserve quality ---
-            frame_filename = os.path.join(extracted_frames_output_dir, f'{frame_number:05d}.png')
-            cv2.imwrite(frame_filename, frame)
+            # --- FIX: Save as high-quality JPG, not PNG ---
+            frame_filename = os.path.join(extracted_frames_output_dir, f'{frame_number:05d}.jpg')
+            cv2.imwrite(frame_filename, frame, jpeg_quality)
         
         if frame_number == 0:
-            first_frame_filename = os.path.join(extracted_frames_output_dir, f'{frame_number:05d}.png')
+            first_frame_filename = os.path.join(extracted_frames_output_dir, f'{frame_number:05d}.jpg')
             if not os.path.exists(first_frame_filename):
-                 cv2.imwrite(first_frame_filename, frame)
+                 cv2.imwrite(first_frame_filename, frame, jpeg_quality)
             first_frame = first_frame_filename
         
         frame_number += 1
     
     cap.release()
     
-    # --- FIX 2.1: Scan for PNG files ---
+    # --- FIX: Scan for JPG files ---
     scanned_frames = [
         p for p in os.listdir(extracted_frames_output_dir)
-        if os.path.splitext(p)[-1] in [".png"]
+        if os.path.splitext(p)[-1] in [".jpg", ".jpeg"]
     ]
     scanned_frames.sort(key=lambda p: int(os.path.splitext(p)[0]))
     
@@ -131,7 +118,6 @@ def get_point(point_type, tracking_points, trackings_input_label, input_first_fr
     label = 1 if point_type == "include" else 0
     trackings_input_label.append(label)
 
-    # Use OpenCV to draw points for a high-res preview
     points_to_draw = [tuple(map(int, p)) for p in tracking_points]
     img_with_points = cv2.imread(input_first_frame_image)
     h, w, _ = img_with_points.shape
@@ -142,7 +128,6 @@ def get_point(point_type, tracking_points, trackings_input_label, input_first_fr
         cv2.circle(img_with_points, point, radius, color, -1)
         cv2.circle(img_with_points, point, radius, (255, 255, 255), 2)
 
-    # Convert back to PIL Image to display in Gradio Image component
     selected_point_map = Image.fromarray(cv2.cvtColor(img_with_points, cv2.COLOR_BGR2RGB))
     
     return tracking_points, trackings_input_label, selected_point_map
@@ -168,7 +153,6 @@ def get_mask_sam_process(
 ):
     print(f"USER CHOSEN CHECKPOINT: {checkpoint}")
     sam2_checkpoint, model_cfg = load_model(checkpoint)
-    print("MODEL LOADED")
     predictor = build_sam2_video_predictor(model_cfg, sam2_checkpoint, device=device)
     print("PREDICTOR READY")
 
@@ -176,6 +160,7 @@ def get_mask_sam_process(
     frame_names = scanned_frames
 
     if stored_inference_state is None:
+        # This is where the error happened. It needs to find JPGs.
         inference_state = predictor.init_state(video_path=video_dir)
         inference_state.update({'num_pathway': 3, 'iou_thre': 0.3, 'uncertainty': 2})
         print("NEW INFERENCE_STATE INITIATED")
@@ -185,7 +170,8 @@ def get_mask_sam_process(
         
     ann_frame_idx = 0
     if working_frame is None:
-        working_frame = "00000.png"
+        # --- FIX: Default filename is JPG ---
+        working_frame = "00000.jpg"
     else:
         match = re.search(r'frame_(\d+)', working_frame)
         if match:
@@ -200,15 +186,14 @@ def get_mask_sam_process(
             points=points, labels=labels,
         )
 
-    # --- FIX 3: Use the new drawing function for a high-quality preview ---
     mask_np = (out_mask_logits[0] > 0.0).cpu().numpy()
     current_frame_path = os.path.join(video_dir, frame_names[ann_frame_idx])
-    
-    # Draw mask and points on the frame using OpenCV
     final_image = draw_mask_and_points_on_image(current_frame_path, mask_np, points, labels)
     
-    first_frame_output_filename = "output_first_frame.png"
-    cv2.imwrite(first_frame_output_filename, final_image)
+    # --- FIX: Save preview as high-quality JPG ---
+    first_frame_output_filename = "output_first_frame.jpg"
+    cv2.imwrite(first_frame_output_filename, final_image, [cv2.IMWRITE_JPEG_QUALITY, 95])
+    
     if device == "cuda":
         torch.cuda.empty_cache()
 
@@ -231,6 +216,7 @@ def propagate_to_all(video_in, checkpoint, stored_inference_state, stored_frame_
     
     output_image_paths = []
     video_segments = {}
+    jpeg_quality = [cv2.IMWRITE_JPEG_QUALITY, 95]
 
     with torch.autocast(device_type="cuda", dtype=torch.bfloat16, enabled=(device=="cuda")):
         out_obj_ids, out_mask_logits = predictor.propagate_in_video(inference_state, start_frame_idx=0, reverse=False)
@@ -241,21 +227,19 @@ def propagate_to_all(video_in, checkpoint, stored_inference_state, stored_frame_
     vis_frame_stride = 15 if vis_frame_type == "check" else 1
     
     for out_frame_idx in progress.tqdm(range(0, len(frame_names), vis_frame_stride), desc="Rendering High-Quality Frames"):
-        # --- FIX 4: Generate frames using OpenCV, not Matplotlib ---
         original_frame_path = os.path.join(video_dir, frame_names[out_frame_idx])
-        # Get the first (and only) object ID and its mask
         obj_id = list(video_segments[out_frame_idx].keys())[0]
         mask_np = video_segments[out_frame_idx][obj_id]
-        
-        # Draw mask on the frame using our high-quality OpenCV function
         final_frame = draw_mask_and_points_on_image(original_frame_path, mask_np)
 
-        output_filename = os.path.join(frames_output_dir, f"frame_{out_frame_idx:05d}.png")
-        cv2.imwrite(output_filename, final_frame)
+        # --- FIX: Save each frame as a high-quality JPG ---
+        output_filename = os.path.join(frames_output_dir, f"frame_{out_frame_idx:05d}.jpg")
+        cv2.imwrite(output_filename, final_frame, jpeg_quality)
         output_image_paths.append(output_filename)
 
-        if f"frame_{out_frame_idx}.png" not in available_frames_to_check:
-            available_frames_to_check.append(f"frame_{out_frame_idx}.png")
+        # --- FIX: Track JPG filenames ---
+        if f"frame_{out_frame_idx}.jpg" not in available_frames_to_check:
+            available_frames_to_check.append(f"frame_{out_frame_idx}.jpg")
 
     if device == "cuda":
         torch.cuda.empty_cache()
@@ -264,18 +248,13 @@ def propagate_to_all(video_in, checkpoint, stored_inference_state, stored_frame_
         return gr.update(value=output_image_paths), gr.update(value=None), gr.update(choices=available_frames_to_check, value=working_frame, visible=True), available_frames_to_check, gr.update(visible=True)
     
     elif vis_frame_type == "render":
-        # --- FIX 5: Increase bitrate for high-quality video encoding ---
         original_fps = get_video_fps(video_in)
-        # Use all generated frames for the final render
         all_rendered_frames = sorted([os.path.join(frames_output_dir, f) for f in os.listdir(frames_output_dir)])
         clip = ImageSequenceClip(all_rendered_frames, fps=original_fps//6)
         final_vid_output_path = "output_video_hq.mp4"
         
         clip.write_videofile(
-            final_vid_output_path,
-            codec='libx264',
-            bitrate='8000k',  # Good bitrate for 1080p
-            logger='bar'
+            final_vid_output_path, codec='libx264', bitrate='8000k', logger='bar'
         )
         
         return gr.update(value=None), gr.update(value=final_vid_output_path), working_frame, available_frames_to_check, gr.update(visible=True)
@@ -286,7 +265,8 @@ def update_ui(vis_frame_type):
 def reset_propagation(first_frame_path, predictor, stored_inference_state):
     if predictor and stored_inference_state:
         predictor.reset_state(stored_inference_state)
-    return first_frame_path, [], [], gr.update(value=None, visible=False), None, None, ["frame_0.png"], first_frame_path, "frame_0.png", gr.update(visible=False)
+    # --- FIX: Default filenames are JPG ---
+    return first_frame_path, [], [], gr.update(value=None, visible=False), None, None, ["frame_0.jpg"], first_frame_path, "frame_0.jpg", gr.update(visible=False)
 
 
 with gr.Blocks(css=css) as demo:
@@ -316,7 +296,8 @@ with gr.Blocks(css=css) as demo:
                 with gr.Accordion("Your Video IN", open=True) as video_in_drawer:
                     video_in = gr.Video(label="Video IN", format="mp4")
             with gr.Column():
-                working_frame = gr.Dropdown(label="Working Frame ID", choices=["frame_0.png"], value="frame_0.png", visible=False, interactive=True)
+                # --- FIX: Default dropdown choice is JPG ---
+                working_frame = gr.Dropdown(label="Working Frame ID", choices=["frame_0.jpg"], value="frame_0.jpg", visible=False, interactive=True)
                 output_result = gr.Image(label="Current Working Mask")
                 with gr.Group():
                     with gr.Row():
