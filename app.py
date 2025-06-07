@@ -644,4 +644,4 @@ with gr.Blocks(css=css) as demo:
         outputs = [output_propagated, output_video, working_frame, available_frames_to_check, reset_prpgt_brn]
     )
 
-demo.launch()
+demo.launch(share=True)
