@@ -43,6 +43,7 @@ def draw_mask_and_points_on_image(image_path, mask, points=None, labels=None):
     image = cv2.imread(image_path)
     color = np.array([0, 255, 0], dtype=np.uint8)
     mask_overlay = np.zeros_like(image, dtype=np.uint8)
+    # This is where the error occurred. The mask shape must be (H, W)
     mask_overlay[mask] = color
     blended_image = cv2.addWeighted(image, 1.0, mask_overlay, 0.6, 0)
 
@@ -78,8 +79,6 @@ def preprocess_video_in(video_path):
     max_frames = int(fps * 60)
     frame_number = 0
     first_frame = None
-    
-    # --- FIX: Set JPEG quality parameter ---
     jpeg_quality = [cv2.IMWRITE_JPEG_QUALITY, 95]
 
     while True:
@@ -87,7 +86,6 @@ def preprocess_video_in(video_path):
         if not ret or frame_number >= max_frames:
             break
         if frame_number % 6 == 0:
-            # --- FIX: Save as high-quality JPG, not PNG ---
             frame_filename = os.path.join(extracted_frames_output_dir, f'{frame_number:05d}.jpg')
             cv2.imwrite(frame_filename, frame, jpeg_quality)
         
@@ -101,7 +99,6 @@ def preprocess_video_in(video_path):
     
     cap.release()
     
-    # --- FIX: Scan for JPG files ---
     scanned_frames = [
         p for p in os.listdir(extracted_frames_output_dir)
         if os.path.splitext(p)[-1] in [".jpg", ".jpeg"]
@@ -160,7 +157,6 @@ def get_mask_sam_process(
     frame_names = scanned_frames
 
     if stored_inference_state is None:
-        # This is where the error happened. It needs to find JPGs.
         inference_state = predictor.init_state(video_path=video_dir)
         inference_state.update({'num_pathway': 3, 'iou_thre': 0.3, 'uncertainty': 2})
         print("NEW INFERENCE_STATE INITIATED")
@@ -170,7 +166,6 @@ def get_mask_sam_process(
         
     ann_frame_idx = 0
     if working_frame is None:
-        # --- FIX: Default filename is JPG ---
         working_frame = "00000.jpg"
     else:
         match = re.search(r'frame_(\d+)', working_frame)
@@ -186,11 +181,14 @@ def get_mask_sam_process(
             points=points, labels=labels,
         )
 
-    mask_np = (out_mask_logits[0] > 0.0).cpu().numpy()
+    # --- FIX 1: Explicitly select the 2D mask from the (1, H, W) tensor ---
+    # The output has shape (num_objects, 1, H, W). We need to select the first object [0]
+    # and then the first mask inside it [0] to get a (H, W) shape.
+    mask_np = (out_mask_logits[0, 0] > 0.0).cpu().numpy()
+    
     current_frame_path = os.path.join(video_dir, frame_names[ann_frame_idx])
     final_image = draw_mask_and_points_on_image(current_frame_path, mask_np, points, labels)
     
-    # --- FIX: Save preview as high-quality JPG ---
     first_frame_output_filename = "output_first_frame.jpg"
     cv2.imwrite(first_frame_output_filename, final_image, [cv2.IMWRITE_JPEG_QUALITY, 95])
     
@@ -222,7 +220,11 @@ def propagate_to_all(video_in, checkpoint, stored_inference_state, stored_frame_
         out_obj_ids, out_mask_logits = predictor.propagate_in_video(inference_state, start_frame_idx=0, reverse=False)
     
     for frame_idx in progress.tqdm(range(0, inference_state['num_frames']), desc="Processing Frames"):
-        video_segments[frame_idx] = {out_obj_ids[0]: (out_mask_logits[frame_idx] > 0.0).cpu().numpy()}
+        # --- FIX 2: Store the correctly shaped 2D mask ---
+        # The output from propagation has shape (num_frames, 1, H, W).
+        # We select the frame [frame_idx] and then the first mask [0] to get a (H, W) shape.
+        mask_2d = (out_mask_logits[frame_idx, 0] > 0.0).cpu().numpy()
+        video_segments[frame_idx] = {out_obj_ids[0]: mask_2d}
 
     vis_frame_stride = 15 if vis_frame_type == "check" else 1
     
@@ -232,12 +234,10 @@ def propagate_to_all(video_in, checkpoint, stored_inference_state, stored_frame_
         mask_np = video_segments[out_frame_idx][obj_id]
         final_frame = draw_mask_and_points_on_image(original_frame_path, mask_np)
 
-        # --- FIX: Save each frame as a high-quality JPG ---
         output_filename = os.path.join(frames_output_dir, f"frame_{out_frame_idx:05d}.jpg")
         cv2.imwrite(output_filename, final_frame, jpeg_quality)
         output_image_paths.append(output_filename)
 
-        # --- FIX: Track JPG filenames ---
         if f"frame_{out_frame_idx}.jpg" not in available_frames_to_check:
             available_frames_to_check.append(f"frame_{out_frame_idx}.jpg")
 
@@ -265,7 +265,6 @@ def update_ui(vis_frame_type):
 def reset_propagation(first_frame_path, predictor, stored_inference_state):
     if predictor and stored_inference_state:
         predictor.reset_state(stored_inference_state)
-    # --- FIX: Default filenames are JPG ---
     return first_frame_path, [], [], gr.update(value=None, visible=False), None, None, ["frame_0.jpg"], first_frame_path, "frame_0.jpg", gr.update(visible=False)
 
 
@@ -296,7 +295,6 @@ with gr.Blocks(css=css) as demo:
                 with gr.Accordion("Your Video IN", open=True) as video_in_drawer:
                     video_in = gr.Video(label="Video IN", format="mp4")
             with gr.Column():
-                # --- FIX: Default dropdown choice is JPG ---
                 working_frame = gr.Dropdown(label="Working Frame ID", choices=["frame_0.jpg"], value="frame_0.jpg", visible=False, interactive=True)
                 output_result = gr.Image(label="Current Working Mask")
                 with gr.Group():
