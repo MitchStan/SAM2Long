@@ -1,7 +1,6 @@
 import subprocess
 import re
 from typing import List, Tuple, Optional
-# import spaces # Removed: Not needed for Colab
 
 # Define the command to be executed
 command = ["python", "setup.py", "build_ext", "--inplace"]
@@ -24,14 +23,13 @@ from datetime import datetime
 import os
 import torch
 import numpy as np
-import cv2
+import cv2 # Imported as cv2
 import matplotlib.pyplot as plt
 from PIL import Image, ImageFilter
 from sam2.build_sam import build_sam2_video_predictor
 from moviepy.editor import ImageSequenceClip
 
-# --- FIX 1: Auto-detect GPU and set performance flags ---
-# Set device to CUDA if available, otherwise CPU
+# Auto-detect GPU and set performance flags
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using device: {device}")
 
@@ -50,62 +48,40 @@ div#component-18, div#component-25, div#component-35, div#component-41{
 """
 
 def sparse_sampling(jpeg_images, original_fps, target_fps=6):
-    # Calculate the frame interval for sampling based on the target fps
     frame_interval = int(original_fps // target_fps)
-    
-    # Sparse sample the jpeg_images by selecting every 'frame_interval' frame
     sampled_images = [jpeg_images[i] for i in range(0, len(jpeg_images), frame_interval)]
-    
     return sampled_images
 
 def get_video_fps(video_path):
-    # Open the video file
     cap = cv2.VideoCapture(video_path)
-    
     if not cap.isOpened():
         print("Error: Could not open video.")
         return None
-    
-    # Get the FPS of the video
     fps = cap.get(cv2.CAP_PROP_FPS)
-
     return fps
 
 def clear_points(image):
-    # we clean all
     return [
         image,   # first_frame_path
         [],      # tracking_points
         [],      # trackings_input_label
         image,   # points_map
-        #gr.State()     # stored_inference_state
     ]
 
 def preprocess_video_in(video_path):
-
-    # Generate a unique ID based on the current date and time
     unique_id = datetime.now().strftime('%Y%m%d%H%M%S')
-    
-    # Set directory with this ID to store video frames 
     extracted_frames_output_dir = f'frames_{unique_id}'
-    
-    # Create the output directory
     os.makedirs(extracted_frames_output_dir, exist_ok=True)
 
-    ### Process video frames ###
-    # Open the video file
     cap = cv2.VideoCapture(video_path)
-    
     if not cap.isOpened():
         print("Error: Could not open video.")
         return None
 
-    # Get the frames per second (FPS) of the video
-    fps = cap.get(cv.CAP_PROP_FPS)
+    # --- THIS IS THE FIXED LINE ---
+    fps = cap.get(cv2.CAP_PROP_FPS) # Use cv2, not cv
     
-    # Calculate the number of frames to process (60 seconds of video)
     max_frames = int(fps * 60)
-    
     frame_number = 0
     first_frame = None
     
@@ -113,23 +89,23 @@ def preprocess_video_in(video_path):
         ret, frame = cap.read()
         if not ret or frame_number >= max_frames:
             break
+        # Process every 6th frame to match original logic, if desired.
+        # This gives ~5fps for a 30fps video.
         if frame_number % 6 == 0:
-            # Format the frame filename as '00000.jpg'
             frame_filename = os.path.join(extracted_frames_output_dir, f'{frame_number:05d}.jpg')
-            
-            # Save the frame as a JPEG file
             cv2.imwrite(frame_filename, frame)
         
-        # Store the first frame
         if frame_number == 0:
-            first_frame = frame_filename
+            # The first frame is always saved regardless of the interval
+            first_frame_filename = os.path.join(extracted_frames_output_dir, f'{frame_number:05d}.jpg')
+            if not os.path.exists(first_frame_filename):
+                 cv2.imwrite(first_frame_filename, frame)
+            first_frame = first_frame_filename
         
         frame_number += 1
     
-    # Release the video capture object
     cap.release()
     
-    # scan all the JPEG frame names in this directory
     scanned_frames = [
         p for p in os.listdir(extracted_frames_output_dir)
         if os.path.splitext(p)[-1] in [".jpg", ".jpeg", ".JPG", ".JPEG"]
@@ -137,24 +113,22 @@ def preprocess_video_in(video_path):
     scanned_frames.sort(key=lambda p: int(os.path.splitext(p)[0]))
     
     return [
-        first_frame,           # first_frame_path
-        [],          # tracking_points
-        [],          # trackings_input_label
-        first_frame,           # input_first_frame_image
-        first_frame,           # points_map
-        extracted_frames_output_dir,            # video_frames_dir
-        scanned_frames,        # scanned_frames
-        None,                  # stored_inference_state
-        None,                  # stored_frame_names
-        gr.update(open=False)  # video_in_drawer
+        first_frame,
+        [],
+        [],
+        first_frame,
+        first_frame,
+        extracted_frames_output_dir,
+        scanned_frames,
+        None,
+        None,
+        gr.update(open=False)
     ]
 
 def get_point(point_type, tracking_points, trackings_input_label, input_first_frame_image, evt: gr.SelectData):
     print(f"You selected {evt.value} at {evt.index} from {evt.target}")
-
     tracking_points.append(evt.index)
     print(f"TRACKING POINT: {tracking_points}")
-
     if point_type == "include":
         trackings_input_label.append(1)
     elif point_type == "exclude":
@@ -203,12 +177,11 @@ def show_box(box, ax):
     ax.add_patch(plt.Rectangle((x0, y0), w, h, edgecolor='green', facecolor=(0, 0, 0, 0), lw=2))    
 
 def load_model(checkpoint):
-    # Load model accordingly to user's choice
     if checkpoint == "tiny":
         sam2_checkpoint = "./checkpoints/sam2.1_hiera_tiny.pt"
         model_cfg = "configs/sam2.1/sam2.1_hiera_t.yaml"
         return [sam2_checkpoint, model_cfg]
-    elif checkpoint == "samll":
+    elif checkpoint == "small": # Corrected typo from "samll"
         sam2_checkpoint = "./checkpoints/sam2.1_hiera_small.pt"
         model_cfg = "configs/sam2.1/sam2.1_hiera_s.yaml"
         return [sam2_checkpoint, model_cfg]
@@ -228,13 +201,10 @@ def get_mask_sam_process(
     working_frame: str = None, 
     available_frames_to_check: List[str] = [],
 ):
-    
-    # --- FIX 2: Use the auto-detected GPU device, not CPU ---
     print(f"USER CHOSEN CHECKPOINT: {checkpoint}")
     sam2_checkpoint, model_cfg = load_model(checkpoint)
     print("MODEL LOADED")
 
-    # Set predictor on the correct device
     predictor = build_sam2_video_predictor(model_cfg, sam2_checkpoint, device=device)
     print("PREDICTOR READY")
 
@@ -250,7 +220,6 @@ def get_mask_sam_process(
     else:
         inference_state = stored_inference_state
 
-    # Ensure the inference state is also set to the correct device
     inference_state["device"] = device
         
     if working_frame is None:
@@ -268,7 +237,6 @@ def get_mask_sam_process(
     points = np.array(tracking_points, dtype=np.float32)
     labels = np.array(trackings_input_label, np.int32)
 
-    # Use autocast for better performance on GPU
     with torch.autocast(device_type="cuda", dtype=torch.bfloat16, enabled=(device=="cuda")):
         _, out_obj_ids, out_mask_logits = predictor.add_new_points(
             inference_state=inference_state,
@@ -296,12 +264,9 @@ def get_mask_sam_process(
     
     return "output_first_frame.jpg", frame_names, predictor, inference_state, gr.update(choices=available_frames_to_check, value=working_frame, visible=False)
 
-# --- FIX 3: Removed @spaces.GPU decorator and simplified device logic ---
 def propagate_to_all(video_in, checkpoint, stored_inference_state, stored_frame_names, video_frames_dir, vis_frame_type, available_frames_to_check, working_frame, progress=gr.Progress(track_tqdm=True)):   
-    
     sam2_checkpoint, model_cfg = load_model(checkpoint)
     
-    # Set predictor and inference state to the correct device
     predictor = build_sam2_video_predictor(model_cfg, sam2_checkpoint, device=device)
     inference_state = stored_inference_state
     inference_state["device"] = device
@@ -315,7 +280,6 @@ def propagate_to_all(video_in, checkpoint, stored_inference_state, stored_frame_
     jpeg_images = []
     video_segments = {}
 
-    # Use autocast for better performance on GPU during propagation
     with torch.autocast(device_type="cuda", dtype=torch.bfloat16, enabled=(device=="cuda")):
         out_obj_ids, out_mask_logits = predictor.propagate_in_video(inference_state, start_frame_idx=0, reverse=False)
     
@@ -378,13 +342,11 @@ def switch_working_frame(working_frame, scanned_frames, video_frames_dir):
     return gr.State([]), gr.State([]), new_working_frame, new_working_frame
 
 def reset_propagation(first_frame_path, predictor, stored_inference_state):
-    
     predictor.reset_state(stored_inference_state)
     return first_frame_path, [], [], gr.update(value=None, visible=False), stored_inference_state, None, ["frame_0.jpg"], first_frame_path, "frame_0.jpg", gr.update(visible=False)
 
 
 with gr.Blocks(css=css) as demo:
-    # ... (Gradio UI layout remains the same)
     first_frame_path = gr.State()
     tracking_points = gr.State([])
     trackings_input_label = gr.State([])
@@ -395,16 +357,8 @@ with gr.Blocks(css=css) as demo:
     stored_frame_names = gr.State()
     available_frames_to_check = gr.State([])
     with gr.Column():
-        gr.Markdown(
-            """
-            <h1 style="text-align: center;">🔥 SAM2Long Demo 🔥</h1>
-            """
-        )
-        gr.Markdown(
-            """
-            This is a simple demo for video segmentation with [SAM2Long](https://github.com/Mark12Ding/SAM2Long).
-            """
-        )
+        gr.Markdown("<h1 style='text-align: center;'>🔥 SAM2Long Demo 🔥</h1>")
+        gr.Markdown("This is a simple demo for video segmentation with [SAM2Long](https://github.com/Mark12Ding/SAM2Long).")
         gr.Markdown(
             """
             ### 📋 Instructions:
@@ -421,36 +375,20 @@ with gr.Blocks(css=css) as demo:
             """
         )
         with gr.Row():
-            
             with gr.Column():
                 with gr.Group():
                     with gr.Group():
                         with gr.Row():
                             point_type = gr.Radio(label="point type", choices=["include", "exclude"], value="include", scale=2)
                             clear_points_btn = gr.Button("Clear Points", scale=1)
-                    
                     input_first_frame_image = gr.Image(label="input image", interactive=False, type="filepath", visible=False)                 
-                    
-                    points_map = gr.Image(
-                        label="Point n Click map", 
-                        type="filepath",
-                        interactive=False
-                    )
-    
+                    points_map = gr.Image(label="Point n Click map", type="filepath", interactive=False)
                     with gr.Group():
                         with gr.Row():
                             checkpoint = gr.Dropdown(label="Checkpoint", choices=["tiny", "small", "base-plus"], value="tiny")
                             submit_btn = gr.Button("Get Mask", size="lg")
-
                 with gr.Accordion("Your video IN", open=True) as video_in_drawer:
                     video_in = gr.Video(label="Video IN", format="mp4")
-
-                # The duplicate button HTML won't work in Colab, but leaving it as it doesn't hurt
-                gr.HTML("""
-                <a href="https://huggingface.co/spaces/your_space_id?duplicate=true">
-                    <img src="https://huggingface.co/datasets/huggingface/badges/resolve/main/duplicate-this-space-lg-dark.svg" alt="Duplicate this Space" />
-                </a> to skip queue and avoid OOM errors from heavy public load
-                """)
             
             with gr.Column():
                 with gr.Group():
@@ -460,7 +398,6 @@ with gr.Blocks(css=css) as demo:
                     with gr.Row():
                         vis_frame_type = gr.Radio(label="Propagation level", choices=["check", "render"], value="check", scale=2)
                         propagate_btn = gr.Button("Propagate", scale=2)
-
                 reset_prpgt_brn = gr.Button("Reset", visible=False)
                 output_propagated = gr.Gallery(label="Propagated Mask samples gallery", columns=4, visible=False)
                 output_video = gr.Video(visible=False)
@@ -485,52 +422,30 @@ with gr.Blocks(css=css) as demo:
     
     points_map.select(
         fn = get_point, 
-        inputs = [
-            point_type,
-            tracking_points,
-            trackings_input_label,
-            input_first_frame_image,
-        ], 
-        outputs = [
-            tracking_points,
-            trackings_input_label,
-            points_map,
-        ], 
+        inputs = [point_type, tracking_points, trackings_input_label, input_first_frame_image], 
+        outputs = [tracking_points, trackings_input_label, points_map], 
         queue = False
     )
 
     clear_points_btn.click(
         fn = clear_points,
         inputs = input_first_frame_image,
-        outputs = [
-            first_frame_path, 
-            tracking_points, 
-            trackings_input_label, 
-            points_map,
-        ],
+        outputs = [first_frame_path, tracking_points, trackings_input_label, points_map],
         queue=False
     )
     
     submit_btn.click(
         fn = get_mask_sam_process,
         inputs = [
-            stored_inference_state,
-            input_first_frame_image, 
-            checkpoint, 
-            tracking_points, 
-            trackings_input_label, 
-            video_frames_dir, 
-            scanned_frames, 
-            working_frame,
-            available_frames_to_check,
+            stored_inference_state, input_first_frame_image, checkpoint, 
+            tracking_points, trackings_input_label, video_frames_dir, 
+            scanned_frames, working_frame, available_frames_to_check,
         ],
         outputs = [
-            output_result, 
-            stored_frame_names, 
-            loaded_predictor,
-            stored_inference_state,
-            working_frame,
-        ]
+            output_result, stored_frame_names, loaded_predictor,
+            stored_inference_state, working_frame,
+        ],
+        api_name="get_mask"
     )
 
     reset_prpgt_brn.click(
@@ -548,7 +463,8 @@ with gr.Blocks(css=css) as demo:
     ).then(
         fn = propagate_to_all,
         inputs = [video_in, checkpoint, stored_inference_state, stored_frame_names, video_frames_dir, vis_frame_type, available_frames_to_check, working_frame],
-        outputs = [output_propagated, output_video, working_frame, available_frames_to_check, reset_prpgt_brn]
+        outputs = [output_propagated, output_video, working_frame, available_frames_to_check, reset_prpgt_brn],
+        api_name="propagate"
     )
 
 demo.launch(share=True, debug=True)
